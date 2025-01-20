@@ -91,6 +91,7 @@ jobs:
       NX_CLOUD_DTE_SUMMARY: 'true'
       NX_CLOUD_NO_TIMEOUTS: 'true'
       NX_CLOUD_SKIP_WORKSPACE_DATA_CACHE: 'false'
+      NX_BRANCH: 'master'
     steps:
       - checkout
       - nx/set-shas:
@@ -104,20 +105,14 @@ jobs:
       - run-pnpm-install:
           os: linux
       - run:
+          name: Cargo dependencies
+          command: cargo metadata --format-version=1
+      - run:
           name: Print env
           command: echo $NX_CACHE_PROJECT_GRAPH
       - run:
-          name: Save workspace cache files
-          command: cp -r .nx/workspace-data .nx/temp-workspace-data
-      - run:
           name: Project Graph Cold
           command: pnpm nx show projects
-      - run:
-          name: Diff workspace cache files
-          command: diff -r .nx/workspace-data .nx/temp-workspace-data
-      - run:
-          name: Print Workspace Cache 2
-          command: ls -lah .nx/workspace-data
       - run:
           name: Project Graph Warm
           command: pnpm nx show projects
