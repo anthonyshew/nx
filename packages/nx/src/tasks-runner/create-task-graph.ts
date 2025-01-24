@@ -16,7 +16,7 @@ export class ProcessTasks {
   private readonly seen = new Set<string>();
   readonly tasks: { [id: string]: Task } = {};
   readonly dependencies: { [k: string]: string[] } = {};
-  readonly infiniteDependencies: { [k: string]: string[] } = {};
+  readonly continuousDependencies: { [k: string]: string[] } = {};
   private readonly allTargetNames: string[];
 
   constructor(
@@ -59,7 +59,7 @@ export class ProcessTasks {
           );
           this.tasks[task.id] = task;
           this.dependencies[task.id] = [];
-          this.infiniteDependencies[task.id] = [];
+          this.continuousDependencies[task.id] = [];
         }
       }
     }
@@ -84,8 +84,8 @@ export class ProcessTasks {
           (dd) => !!initialTasks[dd]
         );
       }
-      for (let d of Object.keys(this.infiniteDependencies)) {
-        this.infiniteDependencies[d] = this.infiniteDependencies[d].filter(
+      for (let d of Object.keys(this.continuousDependencies)) {
+        this.continuousDependencies[d] = this.continuousDependencies[d].filter(
           (dd) => !!initialTasks[dd]
         );
       }
@@ -101,22 +101,22 @@ export class ProcessTasks {
           ).values(),
         ];
       }
-      if (this.infiniteDependencies[taskId].length > 0) {
-        this.infiniteDependencies[taskId] = [
+      if (this.continuousDependencies[taskId].length > 0) {
+        this.continuousDependencies[taskId] = [
           ...new Set(
-            this.infiniteDependencies[taskId].filter((d) => d !== taskId)
+            this.continuousDependencies[taskId].filter((d) => d !== taskId)
           ).values(),
         ];
       }
     }
 
-    filterDummyTasks(this.infiniteDependencies);
+    filterDummyTasks(this.continuousDependencies);
 
-    for (const taskId of Object.keys(this.infiniteDependencies)) {
-      if (this.infiniteDependencies[taskId].length > 0) {
-        this.infiniteDependencies[taskId] = [
+    for (const taskId of Object.keys(this.continuousDependencies)) {
+      if (this.continuousDependencies[taskId].length > 0) {
+        this.continuousDependencies[taskId] = [
           ...new Set(
-            this.infiniteDependencies[taskId].filter((d) => d !== taskId)
+            this.continuousDependencies[taskId].filter((d) => d !== taskId)
           ).values(),
         ];
       }
@@ -125,7 +125,7 @@ export class ProcessTasks {
     return Object.keys(this.tasks).filter(
       (d) =>
         this.dependencies[d].length === 0 &&
-        this.infiniteDependencies[d].length === 0
+        this.continuousDependencies[d].length === 0
     );
   }
 
@@ -242,7 +242,7 @@ export class ProcessTasks {
         );
         this.tasks[selfTaskId] = newTask;
         this.dependencies[selfTaskId] = [];
-        this.infiniteDependencies[selfTaskId] = [];
+        this.continuousDependencies[selfTaskId] = [];
         this.processTask(
           newTask,
           newTask.target.project,
@@ -251,8 +251,8 @@ export class ProcessTasks {
         );
       }
       if (task.id !== selfTaskId) {
-        if (this.tasks[selfTaskId].infinite) {
-          this.infiniteDependencies[task.id].push(selfTaskId);
+        if (this.tasks[selfTaskId].continuous) {
+          this.continuousDependencies[task.id].push(selfTaskId);
         } else {
           this.dependencies[task.id].push(selfTaskId);
         }
@@ -299,8 +299,8 @@ export class ProcessTasks {
         );
 
         if (task.id !== depTargetId) {
-          if (this.tasks[depTargetId].infinite) {
-            this.infiniteDependencies[task.id].push(depTargetId);
+          if (this.tasks[depTargetId].continuous) {
+            this.continuousDependencies[task.id].push(depTargetId);
           } else {
             this.dependencies[task.id].push(depTargetId);
           }
@@ -391,7 +391,7 @@ export class ProcessTasks {
       ),
       cache: project.data.targets[target].cache,
       parallelism: project.data.targets[target].parallelism ?? true,
-      infinite: project.data.targets[target].infinite ?? false,
+      continuous: project.data.targets[target].continuous ?? false,
     };
   }
 
@@ -443,7 +443,7 @@ export function createTaskGraph(
     roots,
     tasks: p.tasks,
     dependencies: p.dependencies,
-    infiniteDependencies: p.infiniteDependencies,
+    continuousDependencies: p.continuousDependencies,
   };
 }
 

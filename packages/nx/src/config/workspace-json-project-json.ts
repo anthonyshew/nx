@@ -256,7 +256,10 @@ export interface TargetConfiguration<T = any> {
    */
   parallelism?: boolean;
 
-  infinite?: boolean;
+  /**
+   * Whether this target runs continuously
+   */
+  continuous?: boolean;
 
   /**
    * List of generators to run before the target to ensure the workspace

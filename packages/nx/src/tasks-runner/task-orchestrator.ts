@@ -36,7 +36,6 @@ import type { TaskDetails } from '../native';
 import { NoopChildProcess } from './running-tasks/noop-child-process';
 import { RunningTask } from './running-tasks/running-task';
 import { NxArgs } from '../utils/command-line-utils';
-import * as treeKill from 'tree-kill';
 
 export class TaskOrchestrator {
   private taskDetails: TaskDetails | null = getTaskDetails();
@@ -68,7 +67,7 @@ export class TaskOrchestrator {
 
   private bailed = false;
 
-  private runningInfiniteTasks = new Map<string, RunningTask>();
+  private runningContinuousTasks = new Map<string, RunningTask>();
   // endregion internal state
 
   constructor(
@@ -98,7 +97,7 @@ export class TaskOrchestrator {
 
     const threadCount =
       this.options.parallel +
-      Object.values(this.taskGraph.tasks).filter((t) => t.infinite).length;
+      Object.values(this.taskGraph.tasks).filter((t) => t.continuous).length;
 
     const threads = [];
 
@@ -152,14 +151,14 @@ export class TaskOrchestrator {
     if (task) {
       const groupId = this.closeGroup();
 
-      if (task.infinite) {
+      if (task.continuous) {
         const childProcess = await this.startInfiniteTask(
           task,
           doNotSkipCache,
           groupId
         );
 
-        this.runningInfiniteTasks.set(task.id, childProcess);
+        this.runningContinuousTasks.set(task.id, childProcess);
       } else {
         await this.applyFromCacheOrRunTask(doNotSkipCache, task, groupId);
       }
@@ -493,7 +492,7 @@ export class TaskOrchestrator {
             usePty:
               isRunOne &&
               !this.tasksSchedule.hasTasks() &&
-              this.runningInfiniteTasks.size === 0,
+              this.runningContinuousTasks.size === 0,
             streamOutput,
           },
           {
@@ -809,7 +808,7 @@ export class TaskOrchestrator {
 
     childProcess.onExit((code) => {
       console.error(
-        `Task "${task.id}" is infinite but exited with code ${code}`
+        `Task "${task.id}" is continuous but exited with code ${code}`
       );
       this.cleanup().then(() => {
         process.exit(1);
@@ -833,7 +832,7 @@ export class TaskOrchestrator {
 
   private async cleanup() {
     await Promise.all(
-      Array.from(this.runningInfiniteTasks).map(([_, t]) => t.kill('SIGTERM'))
+      Array.from(this.runningContinuousTasks).map(([_, t]) => t.kill('SIGTERM'))
     );
   }
 }

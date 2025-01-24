@@ -454,7 +454,7 @@ export function removeTasksFromTaskGraph(
   const newGraph = removeIdsFromTaskGraph<Task>(graph, ids, graph.tasks);
   return {
     dependencies: newGraph.dependencies,
-    infiniteDependencies: newGraph.infiniteDependencies,
+    continuousDependencies: newGraph.continuousDependencies,
     roots: newGraph.roots,
     tasks: newGraph.mapWithIds,
   };
@@ -464,7 +464,7 @@ function removeIdsFromTaskGraph<T>(
   graph: {
     roots: string[];
     dependencies: Record<string, string[]>;
-    infiniteDependencies: Record<string, string[]>;
+    continuousDependencies: Record<string, string[]>;
   },
   ids: string[],
   mapWithIds: Record<string, T>
@@ -472,11 +472,11 @@ function removeIdsFromTaskGraph<T>(
   mapWithIds: Record<string, T>;
   roots: string[];
   dependencies: Record<string, string[]>;
-  infiniteDependencies: Record<string, string[]>;
+  continuousDependencies: Record<string, string[]>;
 } {
   const filteredMapWithIds = {};
   const dependencies = {};
-  const infiniteDependencies = {};
+  const continuousDependencies = {};
   const removedSet = new Set(ids);
   for (let id of Object.keys(mapWithIds)) {
     if (!removedSet.has(id)) {
@@ -484,7 +484,7 @@ function removeIdsFromTaskGraph<T>(
       dependencies[id] = graph.dependencies[id].filter(
         (depId) => !removedSet.has(depId)
       );
-      infiniteDependencies[id] = graph.infiniteDependencies[id].filter(
+      continuousDependencies[id] = graph.continuousDependencies[id].filter(
         (depId) => !removedSet.has(depId)
       );
     }
@@ -492,10 +492,10 @@ function removeIdsFromTaskGraph<T>(
   return {
     mapWithIds: filteredMapWithIds,
     dependencies: dependencies,
-    infiniteDependencies,
+    continuousDependencies,
     roots: Object.keys(filteredMapWithIds).filter(
       (k) =>
-        dependencies[k].length === 0 && infiniteDependencies[k].length === 0
+        dependencies[k].length === 0 && continuousDependencies[k].length === 0
     ),
   };
 }
@@ -514,8 +514,8 @@ export function calculateReverseDeps(
     });
   });
 
-  Object.keys(taskGraph.infiniteDependencies).forEach((taskId) => {
-    taskGraph.infiniteDependencies[taskId].forEach((d) => {
+  Object.keys(taskGraph.continuousDependencies).forEach((taskId) => {
+    taskGraph.continuousDependencies[taskId].forEach((d) => {
       reverseTaskDeps[d].push(taskId);
     });
   });

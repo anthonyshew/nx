@@ -82,7 +82,10 @@ export interface Task {
    */
   parallelism: boolean;
 
-  infinite: boolean;
+  /**
+   * This denotes if the task runs continuously
+   */
+  continuous: boolean;
 }
 
 /**
@@ -102,5 +105,5 @@ export interface TaskGraph {
    */
   dependencies: Record<string, string[]>;
 
-  infiniteDependencies: Record<string, string[]>;
+  continuousDependencies: Record<string, string[]>;
 }
