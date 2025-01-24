@@ -42,16 +42,19 @@ export class CoursesApi {
     const content = await readFile(courseFilePath, 'utf-8');
     const frontmatter = extractFrontmatter(content);
 
-    const lessonFolders = await readdir(coursePath);
-    const lessons = await Promise.all(
-      lessonFolders
-        .filter((folder) => {
-          const stat = lstatSync(join(coursePath, folder));
-          return stat.isDirectory();
-        })
-        .map((folder) => this.getLessons(folderName, folder))
-    );
-    const flattenedLessons = lessons.flat();
+    let lessons: Lesson[] = [];
+    if (!frontmatter.externalLink) {
+      const lessonFolders = await readdir(coursePath);
+      const tmpLessons = await Promise.all(
+        lessonFolders
+          .filter((folder) => {
+            const stat = lstatSync(join(coursePath, folder));
+            return stat.isDirectory();
+          })
+          .map((folder) => this.getLessons(folderName, folder))
+      );
+      lessons = tmpLessons.flat();
+    }
 
     return {
       id: folderName,
@@ -62,9 +65,11 @@ export class CoursesApi {
         frontmatter.authors.includes(author.name)
       ),
       repository: frontmatter.repository,
-      lessons: flattenedLessons,
+      lessons,
       filePath: courseFilePath,
-      totalDuration: calculateTotalDuration(flattenedLessons),
+      totalDuration: calculateTotalDuration(lessons),
+      lessonCount: frontmatter.lessonCount,
+      externalLink: frontmatter.externalLink,
     };
   }
 

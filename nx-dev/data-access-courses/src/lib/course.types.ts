@@ -8,7 +8,9 @@ export interface Course {
   authors: BlogAuthor[];
   repository?: string;
   lessons: Lesson[];
+  lessonCount?: number;
   filePath: string;
+  externalLink?: string;
   totalDuration: string;
 }
 
