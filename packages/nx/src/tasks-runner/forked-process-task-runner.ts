@@ -201,7 +201,10 @@ export class ForkedProcessTaskRunner {
       terminalOutput += msg;
     });
 
-    p.onExit(() => {
+    p.onExit((code) => {
+      if (code > 128) {
+        process.exit(code);
+      }
       this.processes.delete(p);
       this.writeTerminalOutput(temporaryOutputPath, terminalOutput);
     });

@@ -17,7 +17,6 @@ import {
   unloadDotEnvFile,
 } from '../../tasks-runner/task-env';
 import * as treeKill from 'tree-kill';
-import { promisify } from 'util';
 
 export class ParallelRunningTasks implements RunningTask {
   private readonly childProcesses: RunningNodeProcess[];
@@ -32,10 +31,12 @@ export class ParallelRunningTasks implements RunningTask {
       (commandConfig) =>
         new RunningNodeProcess(
           commandConfig,
+          options.color,
           calculateCwd(options.cwd, context),
           options.env ?? {},
           options.readyWhenStatus,
-          options.streamOutput
+          options.streamOutput,
+          options.envFile
         )
     );
     this.readyWhenStatus = options.readyWhenStatus;
@@ -63,7 +64,15 @@ export class ParallelRunningTasks implements RunningTask {
   }
 
   async kill(signal?: NodeJS.Signals | number) {
-    await Promise.all(this.childProcesses.map((p) => p.kill(signal)));
+    await Promise.all(
+      this.childProcesses.map(async (p) => {
+        try {
+          return p.kill();
+        } catch (e) {
+          console.error(`Unable to terminate "${p.command}"\nError:`, e);
+        }
+      })
+    );
   }
 
   private async run() {
@@ -143,24 +152,33 @@ export class SeriallyRunningTasks implements RunningTask {
   private currentProcess: RunningTask | PseudoTtyProcess | null = null;
   private exitCallbacks: Array<(code: number, terminalOutput: string) => void> =
     [];
-  private code: number | null = null;
+  private code: number | null = 0;
+  private error: any;
 
   constructor(
     options: NormalizedRunCommandsOptions,
     context: ExecutorContext,
     private pseudoTerminal?: PseudoTerminal
   ) {
-    this.run(options, context).finally(() => {
-      for (const cb of this.exitCallbacks) {
-        cb(this.code, this.terminalOutput);
-      }
-    });
+    this.run(options, context)
+      .catch((e) => {
+        this.error = e;
+      })
+      .finally(() => {
+        for (const cb of this.exitCallbacks) {
+          cb(this.code, this.terminalOutput);
+        }
+      });
   }
 
   getResults(): Promise<{ code: number; terminalOutput: string }> {
-    return new Promise((res) => {
+    return new Promise((res, rej) => {
       this.onExit((code) => {
-        res({ code, terminalOutput: this.terminalOutput });
+        if (this.error) {
+          rej(this.error);
+        } else {
+          res({ code, terminalOutput: this.terminalOutput });
+        }
       });
     });
   }
@@ -196,28 +214,19 @@ export class SeriallyRunningTasks implements RunningTask {
       );
       this.currentProcess = childProcess;
 
-      let terminalOutput = '';
-      const result = await new Promise<{
-        code: number;
-        terminalOutput: string;
-      }>((res) => {
-        childProcess.onExit((code) => {
-          this.code = code;
-          if (code >= 128) {
-            process.exit(code);
-          } else {
-            res({ code, terminalOutput });
-          }
-        });
-      });
-      this.terminalOutput += result.terminalOutput;
-      if (result.code !== 0) {
+      let { code, terminalOutput } = await childProcess.getResults();
+      if (code !== 0) {
         const output = `Warning: command "${c.command}" exited with non-zero status code`;
-        result.terminalOutput += output;
+        terminalOutput += output;
         if (options.streamOutput) {
           process.stderr.write(output);
         }
+        throw new Error(
+          `Command "${c.command}" exited with non-zero status code`
+        );
       }
+      this.terminalOutput += terminalOutput;
+      this.code = code;
     }
   }
 
@@ -237,7 +246,7 @@ export class SeriallyRunningTasks implements RunningTask {
     streamOutput: boolean = true,
     tty: boolean,
     envFile?: string
-  ): Promise<PseudoTtyProcess | RunningTask> {
+  ): Promise<PseudoTtyProcess | RunningNodeProcess> {
     // The rust runCommand is always a tty, so it will not look nice in parallel and if we need prefixes
     // currently does not work properly in windows
     if (
@@ -262,10 +271,12 @@ export class SeriallyRunningTasks implements RunningTask {
 
     return new RunningNodeProcess(
       commandConfig,
+      color,
       cwd,
       env,
       readyWhenStatus,
-      streamOutput
+      streamOutput,
+      envFile
     );
   }
 }
@@ -284,11 +295,14 @@ class RunningNodeProcess implements RunningTask {
       bgColor?: string;
       prefix?: string;
     },
+    color: boolean,
     cwd: string,
     env: Record<string, string>,
     private readyWhenStatus: { stringToMatch: string; found: boolean }[],
-    streamOutput = true
+    streamOutput = true,
+    envFile: string
   ) {
+    env = processEnv(color, cwd, env, envFile);
     this.command = commandConfig.command;
     this.terminalOutput = chalk.dim('> ') + commandConfig.command + '\r\n\r\n';
     if (streamOutput) {

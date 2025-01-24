@@ -34,7 +34,7 @@ function getSortedProjects(
   return getSortedProjects(newGraph, sortedProjects);
 }
 
-export function removeIdsFromGraph<T>(
+function removeIdsFromGraph<T>(
   graph: {
     roots: string[];
     dependencies: Record<string, string[]>;

@@ -77,6 +77,7 @@ export class ProcessTasks {
         if (!initialTasks[t]) {
           delete this.tasks[t];
           delete this.dependencies[t];
+          delete this.continuousDependencies[t];
         }
       }
       for (let d of Object.keys(this.dependencies)) {
@@ -98,13 +99,6 @@ export class ProcessTasks {
         this.dependencies[taskId] = [
           ...new Set(
             this.dependencies[taskId].filter((d) => d !== taskId)
-          ).values(),
-        ];
-      }
-      if (this.continuousDependencies[taskId].length > 0) {
-        this.continuousDependencies[taskId] = [
-          ...new Set(
-            this.continuousDependencies[taskId].filter((d) => d !== taskId)
           ).values(),
         ];
       }
@@ -298,8 +292,13 @@ export class ProcessTasks {
           resolvedConfiguration
         );
 
+        const depTargetConfiguration =
+          this.projectGraph.nodes[depProject.name].data.targets[
+            dependencyConfig.target
+          ];
+
         if (task.id !== depTargetId) {
-          if (this.tasks[depTargetId].continuous) {
+          if (depTargetConfiguration.continuous) {
             this.continuousDependencies[task.id].push(depTargetId);
           } else {
             this.dependencies[task.id].push(depTargetId);
@@ -315,6 +314,7 @@ export class ProcessTasks {
           );
           this.tasks[depTargetId] = newTask;
           this.dependencies[depTargetId] = [];
+          this.continuousDependencies[depTargetId] = [];
 
           this.processTask(
             newTask,
@@ -335,6 +335,7 @@ export class ProcessTasks {
         );
         this.dependencies[task.id].push(dummyId);
         this.dependencies[dummyId] ??= [];
+        this.continuousDependencies[dummyId] ??= [];
         const noopTask = this.createDummyTask(dummyId, task);
         this.processTask(noopTask, depProject.name, configuration, overrides);
       }

@@ -832,7 +832,13 @@ export class TaskOrchestrator {
 
   private async cleanup() {
     await Promise.all(
-      Array.from(this.runningContinuousTasks).map(([_, t]) => t.kill('SIGTERM'))
+      Array.from(this.runningContinuousTasks).map(async ([taskId, t]) => {
+        try {
+          return t.kill();
+        } catch (e) {
+          console.error(`Unable to terminate ${taskId}\nError:`, e);
+        }
+      })
     );
   }
 }

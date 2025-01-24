@@ -18,29 +18,6 @@ describe('PseudoTerminal', () => {
     });
   });
 
-  it('should run multiple commands2', async () => {
-    const term1 = getPseudoTerminal(true);
-    const term2 = getPseudoTerminal(true);
-
-    await term1.init();
-    await term2.init();
-    const childProcess = term1.runCommand('sleep 20');
-    const childProcess2 = term2.runCommand('sleep 20');
-    return Promise.all([
-      new Promise<void>((res) => {
-        childProcess.onExit((exitCode) => {
-          expect(exitCode).toEqual(0);
-          res();
-        });
-      }),
-      new Promise<void>((res) => {
-        childProcess2.onExit((exitCode) => {
-          expect(exitCode).toEqual(0);
-          res();
-        });
-      }),
-    ]);
-  });
   it('should kill a running command', (done) => {
     const childProcess = terminal.runCommand(
       'sleep 3 && echo "hello world" > file.txt'
@@ -54,17 +31,37 @@ describe('PseudoTerminal', () => {
   }, 1000);
 
   it('should subscribe to output', (done) => {
-    const childProcess = terminal.runCommand('echo "hello world"');
+    const childProcess = terminal.runCommand('sleep 1 && echo "hello world"');
 
     let output = '';
     childProcess.onOutput((chunk) => {
+      console.log('on output', chunk);
       output += chunk;
     });
 
     childProcess.onExit(() => {
-      expect(output.trim()).toContain('hello world');
-      done();
+      console.log('on exit');
+      try {
+        expect(output.trim()).toContain('hello world');
+      } finally {
+        done();
+      }
     });
+  });
+
+  it('should get results', async () => {
+    const childProcess = terminal.runCommand('echo "hello world"');
+
+    const results = await childProcess.getResults();
+
+    expect(results.code).toEqual(0);
+    expect(results.terminalOutput).toContain('hello world');
+    const childProcess2 = terminal.runCommand('echo "hello world"');
+
+    const results2 = await childProcess2.getResults();
+
+    expect(results2.code).toEqual(0);
+    expect(results2.terminalOutput).toContain('hello world');
   });
 
   if (process.env.CI !== 'true') {
