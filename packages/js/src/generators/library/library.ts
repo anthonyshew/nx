@@ -1240,7 +1240,7 @@ function determineEntryFields(
   }
 }
 
-function logNxReleaseDocsInfo() {
+export function logNxReleaseDocsInfo() {
   output.log({
     title: `📦 To learn how to publish this library, see https://nx.dev/core-features/manage-releases.`,
   });

@@ -7,30 +7,34 @@ import {
 } from '@nx/e2e/utils';
 
 describe('publishable libraries release', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     newProject({
-      packages: ['@nx/js'],
+      packages: ['@nx/js', '@nx/react'],
     });
-  });
-  afterAll(() => cleanupProject());
-
-  it('should be able release publishable js library', async () => {
     // Normalize git committer information so it is deterministic in snapshots
     await runCommandAsync(`git config user.email "test@test.com"`);
     await runCommandAsync(`git config user.name "Test"`);
     // Create a baseline version tag
     await runCommandAsync(`git tag v0.0.0`);
 
-    const jsLib = uniq('js-lib');
-    runCLI(
-      `generate @nx/js:lib ${jsLib} --publishable --importPath=@proj/${jsLib}`
-    );
-
     // We need a valid git origin to exist for the commit references to work (and later the test for createRelease)
     await runCommandAsync(
       `git remote add origin https://github.com/nrwl/fake-repo.git`
     );
 
+    const jsLib = uniq('js-lib');
+    runCLI(
+      `generate @nx/js:lib ${jsLib} --publishable --importPath=@proj/${jsLib}`
+    );
+
+    const reactLib = uniq('react-lib');
+    runCLI(
+      `generate @nx/react:lib ${reactLib} --publishable --importPath=@proj/${reactLib}`
+    );
+  });
+  afterAll(() => cleanupProject());
+
+  it('should be able release publishable libraries', async () => {
     let versionOutput = runCLI(`release --first-release`);
     versionOutput = runCLI(`release patch`);
 

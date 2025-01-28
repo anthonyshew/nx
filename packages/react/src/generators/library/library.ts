@@ -6,16 +6,20 @@ import {
   GeneratorCallback,
   installPackagesTask,
   joinPathFragments,
-  readNxJson,
+  readProjectConfiguration,
   runTasksInSerial,
   Tree,
   updateJson,
-  updateNxJson,
+  updateProjectConfiguration,
   writeJson,
 } from '@nx/devkit';
 import { getRelativeCwd } from '@nx/devkit/src/generators/artifact-name-and-directory-utils';
 import { logShowProjectCommand } from '@nx/devkit/src/utils/log-show-project-command';
-import { addTsConfigPath, initGenerator as jsInitGenerator } from '@nx/js';
+import {
+  addTsConfigPath,
+  initGenerator as jsInitGenerator,
+  setupVerdaccio,
+} from '@nx/js';
 
 import { nxVersion } from '../../utils/versions';
 import { maybeJs } from '../../utils/maybe-js';
@@ -37,6 +41,8 @@ import {
 } from '@nx/js/src/utils/typescript/ts-solution-setup';
 import { determineEntryFields } from './lib/determine-entry-fields';
 import { sortPackageJsonFields } from '@nx/js/src/utils/package-json/sort-fields';
+import { addReleaseOptionForPublishableTarget } from '@nx/js/src/generators/library/utils/add-release-config';
+import { logNxReleaseDocsInfo } from '@nx/js/src/generators/library/library';
 
 export async function libraryGenerator(host: Tree, schema: Schema) {
   return await libraryGeneratorInternal(host, {
@@ -236,11 +242,23 @@ export async function libraryGeneratorInternal(host: Tree, schema: Schema) {
     tasks.push(componentTask);
   }
 
-  if (options.publishable || options.buildable) {
+  if (options.buildable && options.importPath) {
     updateJson(host, `${options.projectRoot}/package.json`, (json) => {
       json.name = options.importPath;
       return json;
     });
+  }
+  if (options.publishable) {
+    tasks.push(await setupVerdaccio(host, { ...options, skipFormat: true }));
+    const projectConfiguration = readProjectConfiguration(host, options.name);
+    await addReleaseOptionForPublishableTarget(
+      host,
+      options.isUsingTsSolutionConfig,
+      options.projectRoot,
+      projectConfiguration,
+      options.name
+    );
+    updateProjectConfiguration(host, options.name, projectConfiguration);
   }
 
   if (!options.skipPackageJson) {
@@ -281,6 +299,12 @@ export async function libraryGeneratorInternal(host: Tree, schema: Schema) {
 
   if (!options.skipFormat) {
     await formatFiles(host);
+  }
+
+  if (options.publishable) {
+    tasks.push(() => {
+      logNxReleaseDocsInfo();
+    });
   }
 
   // Always run install to link packages.
