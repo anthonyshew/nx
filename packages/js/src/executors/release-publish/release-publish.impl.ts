@@ -106,6 +106,23 @@ Please update the local dependency on "${depName}" to be a valid semantic versio
     warnFn
   );
 
+  if (!registry) {
+    console.error(
+      `Error: No registry was found for ${packageTxt}. Please ensure that the package.json file in the package root contains a valid registry, or that the --registry option was provided.`
+    );
+    return {
+      success: false,
+    };
+  }
+  if (!tag) {
+    console.error(
+      `Error: No tag was found for ${packageTxt}. Please ensure that the package.json file in the package root contains a valid tag, or that the --tag option was provided.`
+    );
+    return {
+      success: false,
+    };
+  }
+
   const npmViewCommandSegments = [
     `npm view ${packageName} versions dist-tags --json --"${registryConfigKey}=${registry}"`,
   ];
